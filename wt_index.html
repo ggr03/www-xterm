@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WWW-Xterm</title>
+    <link rel="stylesheet" href="wt_style.css">
+    <!-- Served locally (see wt_server.js) rather than from a CDN: this app
+         grants shell access, so an unpinned third-party script is a real
+         risk if that CDN is ever compromised or MITM'd. -->
+    <link rel="stylesheet" href="vendor/xterm.css" />
+</head>
+<body>
+    <div class="tab-bar">
+        <button id="add-tab" title="New Tab">+</button>
+        <div id="tabs-container"></div>
+    </div>
+    <div id="terminals-container"></div>
+
+    <script src="vendor/xterm.js"></script>
+    <script src="vendor/xterm-addon-fit.js"></script>
+    <script src="wt_client.js"></script>
+</body>
+</html>
