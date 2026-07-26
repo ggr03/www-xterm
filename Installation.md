@@ -10,7 +10,7 @@
 
 1. Clone the repository and go into it:
    ```bash
-   git clone https://github.com/<your-username>/wwwxterm.git
+   git clone https://github.com/ggr03/wwwxterm.git
    cd wwwxterm
    ```
 2. Make the installer executable and run it:
