@@ -16,7 +16,7 @@ A local-only, multi-tab web terminal. Inspired by the architecture of *Wetty* an
 
 ## 🚀 Quick start
 ```bash
-git clone https://github.com/<your-username>/wwwxterm.git
+git clone https://github.com/ggr03/wwwxterm.git
 cd wwwxterm
 chmod +x wt_install.sh
 ./wt_install.sh
