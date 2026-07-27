@@ -23,8 +23,20 @@ chmod +x wt_install.sh
 ```
 Then open `http://127.0.0.1:3000`. See [Installation](../../wiki/Installation) for details, and [Configuration](../../wiki/Configuration) for changing the port, session limits, or terminal appearance.
 
+---
+
+<img width="1427" height="1445" alt="20260726_235621_WWW-Xterm - Vivaldi_Screentshot" src="https://github.com/user-attachments/assets/daa33b18-aaac-4c88-804f-20b69c4372c9" />
+
+---
+
 ## 🔒 Security
 This app gives a browser tab a real shell, so its threat model is worth reading before you rely on it — see the [Security Model](../../wiki/Security-Model) wiki page, including what it does **not** protect against (e.g. other local user accounts on the same machine).
+
+---
+
+<img width="1438" height="282" alt="20260726_234709_Screentshot" src="https://github.com/user-attachments/assets/cdca4569-4ba3-423e-9007-5bb7cd9b54e1" />
+
+---
 
 ## Uninstalling
 ```bash
