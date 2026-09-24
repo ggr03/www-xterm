@@ -1,8 +1,8 @@
 # wwwxterm (WWW-Xterm)
 
-**wwwxterm** is a lightweight, local-only, multi-tab web terminal. It runs a small Node.js server on your own machine that gives you a real terminal in a browser tab at `http://127.0.0.1:3000`, backed by actual shell processes and rendered with [xterm.js](https://xtermjs.org/).
+**wwwxterm** is a multi-tab web terminal for your LAN. It runs a small Node.js server that gives you a real terminal in a browser tab, reachable from other devices on your network and protected by your actual system login password, backed by real shell processes and rendered with [xterm.js](https://xtermjs.org/).
 
-It exists for one purpose: a convenient terminal in a browser tab on **your own desktop**. It is not a remote-access tool, not a multi-user tool, and not meant to be exposed beyond `localhost`.
+It exists for one purpose: a convenient terminal in a browser tab, usable from anywhere on **your own network**. It is not designed for exposure beyond your LAN, and it is not a multi-user tool — see [Security Model](Security-Model) for exactly what that means.
 
 ## Platform requirement
 
@@ -20,7 +20,8 @@ A small Express server serves a static front end (`wt_index.html`/`wt_client.js`
 
 - **Multi-tab terminals** — open several independent shells, switch between them, close them independently.
 - **Runs as a systemd user service** — starts on login, restarts automatically on crash, managed entirely with `systemctl --user`. No root is ever needed to run it.
-- **Local-only by design** — binds to `127.0.0.1` and validates the `Origin`/`Host` of every connection, closing the cross-site-WebSocket / DNS-rebinding gap that localhost binding alone doesn't cover.
+- **Login required** — protected by your real system password, checked via PAM. Only the account running the service can ever log in — enforced by the OS, not just the app.
+- **TLS by default off localhost** — a self-signed certificate is generated at install time; the server refuses to start reachable-beyond-localhost without it.
 - **No CDN dependency at runtime** — `xterm.js` and its fit addon are pinned npm dependencies served from the local `node_modules`, not fetched from a third-party CDN on every page load.
 - **Copy & paste** — native terminal copy/paste (`Ctrl+Shift+C` / `Ctrl+Shift+V`, or right-click).
 - **Responsive sizing** — the terminal fills and tracks the actual browser window, resizing the underlying PTY to match.
@@ -33,7 +34,7 @@ cd www-xterm
 chmod +x wt_install.sh
 ./wt_install.sh
 ```
-Then open `http://127.0.0.1:3000`.
+The installer prints the LAN URL to open, and you log in with your normal system password.
 
 ## Wiki contents
 

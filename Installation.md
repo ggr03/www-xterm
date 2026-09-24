@@ -4,10 +4,11 @@
 
 | Requirement | Why |
 |---|---|
-| A Debian-based Linux distro (Debian, Ubuntu, MX Linux, etc.) | The installer calls `apt` directly to install Node.js and build tools. |
+| A Debian-based Linux distro (Debian, Ubuntu, MX Linux, etc.) | The installer calls `apt` directly to install Node.js, build tools, and PAM headers. |
 | `systemd` with a user session bus | wwwxterm is installed and run as a `systemd --user` service, managed via `systemctl --user`. This is the default on essentially every modern desktop install of these distros. |
-| `sudo` access | Needed only to install system packages (`nodejs`, `npm`, `build-essential`, `python3`). wwwxterm itself never runs as root. |
-| Internet access (one-time) | Needed for `npm install`. Nothing is fetched over the network once installed — see [Security Model](Security-Model). |
+| PAM (present by default on virtually all Linux systems) | Used to check your real system login password. |
+| `sudo` access | Needed for: installing system packages, writing a PAM service file at `/etc/pam.d/wwwxterm`, and (optionally) `loginctl enable-linger`. wwwxterm itself never runs as root — see [Security Model](Security-Model). |
+| Internet access (one-time) | Needed for `npm install`. Nothing is fetched over the network once installed. |
 
 ## Step by step
 
@@ -23,16 +24,21 @@ chmod +x wt_install.sh
 ./wt_install.sh
 ```
 
-What it actually does, in order:
-1. Checks for `node`/`npm`; if missing, installs `nodejs npm` via `sudo apt install`. **This, and step 2 below, are the only places `sudo` is used.**
-2. Installs `build-essential` and `python3` via `sudo apt install` — required to compile `node-pty`'s native module.
-3. Copies `wt_package.json` to `package.json` (npm requires that exact filename).
-4. Runs `npm install` **as your normal user** — never with `sudo`, so `node_modules` ends up owned by you, not root.
-5. Generates a `systemd --user` unit at `~/.config/systemd/user/wwwxterm.service`, pointing `ExecStart` at your `node` binary and the cloned project directory.
-6. Runs `systemctl --user daemon-reload` and `systemctl --user enable --now wwwxterm.service`.
+What it does, in order:
+1. Installs `nodejs npm` via `apt` if missing.
+2. Installs `build-essential`, `python3`, `libpam0g-dev`, and `openssl` via `apt` — needed to compile `node-pty` and the PAM login binding, and to generate a TLS certificate. **These, and step 3, are the only places `sudo` is used.**
+3. Writes `/etc/pam.d/wwwxterm` — a minimal PAM service definition used only to check your account password (see [Security Model](Security-Model) for why a dedicated service file is used instead of reusing e.g. `login`).
+4. Copies `wt_package.json` to `package.json` and runs `npm install` **as your normal user**.
+5. Generates a self-signed TLS certificate (if one doesn't already exist) at `tls/wt_cert.pem` / `tls/wt_key.pem`, covering `localhost`, `127.0.0.1`, your machine's hostname, and its detected LAN IP.
+6. Generates a `systemd --user` unit at `~/.config/systemd/user/wwwxterm.service`, configured to bind `0.0.0.0` (all interfaces) and point at the generated TLS cert.
+7. Runs `systemctl --user daemon-reload` and `systemctl --user enable --now wwwxterm.service`.
 
-### 3. Open it
-Visit `http://127.0.0.1:3000` in your browser.
+### 3. Open it and log in
+The installer prints the URL, something like:
+```
+https://192.168.1.42:3000
+```
+Open that from any device on your LAN (or `https://127.0.0.1:3000` on the machine itself). Your browser will warn about the certificate being self-signed/untrusted — this is expected, not an error; accept it to continue. Log in with **your normal system account password** — there's only one valid account, whichever one is running the service.
 
 ## Verifying it's running
 
@@ -43,21 +49,18 @@ Look for `Active: active (running)`. If it's not, jump to [Troubleshooting](Trou
 
 ## Running before login (optional)
 
-By default, like any `systemd --user` service, wwwxterm only runs while you're logged in and stops when you log out. If you want it running immediately after boot — before any interactive login — enable linger for your account:
-
+By default, wwwxterm only runs while you're logged in and stops when you log out — same as any `systemd --user` service. To have it running immediately after boot:
 ```bash
 sudo loginctl enable-linger $USER
 ```
-
-This is the only optional post-install step that touches `sudo`, and it does **not** make wwwxterm run as root. It grants your account permission to keep its own user services running without an active login session; the service itself still runs entirely as you.
+This grants your account permission to keep its own user services running without an active login session; it does **not** make wwwxterm run as root.
 
 ## Reinstalling / updating
 
-To pick up a new version of the code (e.g. after `git pull`):
 ```bash
 cd www-xterm
 git pull
 npm install          # only needed if dependencies changed
 systemctl --user restart wwwxterm
 ```
-You don't need to re-run `wt_install.sh` unless the systemd unit itself needs regenerating (e.g. you moved the project directory, or upgraded/changed your `node` binary path).
+You don't need to re-run `wt_install.sh` for routine updates — it's safe to re-run any time, though (it won't overwrite an existing PAM file or TLS certificate; see their respective sections in [Configuration](Configuration) if you need to regenerate either).

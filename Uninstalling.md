@@ -7,7 +7,7 @@ chmod +x wt_uninstall.sh
 ./wt_uninstall.sh
 ```
 
-No `sudo` is needed for any of this — the service is a per-user systemd unit, and everything it touches belongs to your own account.
+One step needs `sudo`: removing `/etc/pam.d/wwwxterm`, since that file was written as root during install. Everything else belongs to your own account and needs no elevated privileges.
 
 ## What it removes
 
@@ -17,6 +17,8 @@ No `sudo` is needed for any of this — the service is a per-user systemd unit, 
 | `~/.config/systemd/user/wwwxterm.service` | The project directory itself |
 | `node_modules/` | — |
 | `package.json` / `package-lock.json` (the generated copies) | `wt_package.json` (the source manifest) |
+| `tls/` (the generated self-signed certificate/key) | A certificate you configured yourself outside the project directory |
+| `/etc/pam.d/wwwxterm` (needs `sudo`) | — |
 
 As a fallback, it also runs `pkill -f "node .*wt_server.js"` in case a copy is somehow running outside the systemd service (e.g. you started it manually for testing).
 

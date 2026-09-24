@@ -5,6 +5,7 @@ let activeTabId = null;
 const tabsContainer = document.getElementById('tabs-container');
 const terminalsContainer = document.getElementById('terminals-container');
 const addTabBtn = document.getElementById('add-tab');
+const logoutBtn = document.getElementById('logout-btn');
 
 function createTab() {
     const tabId = `tab-${++tabCounter}`;
@@ -84,8 +85,15 @@ function createTab() {
         if (!tabState.closed) term.write(event.data);
     };
 
-    ws.onclose = () => {
-        if (!tabState.closed) term.writeln('\r\n\x1b[1;31mConnection closed.\x1b[0m');
+    ws.onclose = (event) => {
+        if (tabState.closed) return;
+        if (event.code === 4001) {
+            // Session expired or was invalidated server-side - send the
+            // whole page to the login screen rather than leaving a dead tab.
+            window.location.href = '/login';
+            return;
+        }
+        term.writeln('\r\n\x1b[1;31mConnection closed.\x1b[0m');
     };
 
     ws.onerror = () => {
@@ -159,4 +167,11 @@ window.addEventListener('resize', () => {
 });
 
 addTabBtn.onclick = createTab;
+logoutBtn.onclick = async () => {
+    try {
+        await fetch('/logout', { method: 'POST' });
+    } finally {
+        window.location.href = '/login';
+    }
+};
 createTab(); // Create initial tab

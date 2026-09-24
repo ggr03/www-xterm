@@ -1,54 +1,52 @@
 # Security Model
 
-wwwxterm gives a browser tab a real shell. That's the entire point of the tool, and also exactly why its threat model deserves to be spelled out plainly rather than just asserted.
+wwwxterm gives a browser tab a real shell, and — since login was added — is reachable from other devices on your LAN. That combination deserves a plain, honest account of what's protected and what isn't.
 
 ## What's protected
 
-### Bound to `127.0.0.1` only
-The server never listens on a network-reachable interface (`HOST = '127.0.0.1'` in `wt_server.js`, hardcoded, not configurable via environment). It cannot be reached from another machine on your LAN or the internet, full stop — there is no setting that would accidentally expose it.
+### Login is required, and can only ever be *your* account
+Every route except `/login` requires a valid session, and a session is only created by successfully authenticating via PAM. Critically, this isn't just an application-level check: wwwxterm's server process runs as an ordinary (non-root) user, and PAM's standard Unix authentication (`pam_unix.so`) enforces, at the OS level, that a non-root process can only verify the password of the account it's already running as — it does this by shelling out to a setuid-root helper (`unix_chkpwd`) that refuses to check any other account for a non-root caller. In other words, even a bug in wwwxterm's own login code couldn't be used to authenticate as a different local user — the OS itself won't allow it.
 
-### Origin/Host validation on every WebSocket upgrade
-This is the most important protection in the codebase, and the easiest one to get wrong by omission, so it's worth explaining *why* it exists rather than just what it does.
+### TLS is required once reachable beyond localhost
+The server checks its own `HOST` binding at startup and **refuses to start** if it's configured to listen beyond `127.0.0.1`/`localhost` without a TLS certificate configured (`WT_TLS_CERT`/`WT_TLS_KEY`). This exists specifically so a real login password can never be sent in plaintext across your network. The installer generates a self-signed certificate automatically.
 
-Binding to localhost is **not** sufficient on its own. Browsers do not apply same-origin restrictions to outgoing WebSocket connections the way they do to, say, `fetch()`. That means any web page open in another tab of your browser — a malicious ad, a compromised site, anything — could, in principle, open `ws://127.0.0.1:<port>/pty` directly and get a shell. This is a real, previously-exploited class of vulnerability in similar browser-terminal tools, and it's also the mechanism behind DNS-rebinding attacks against localhost services generally.
+> Your browser will show an "untrusted certificate" warning the first time you connect — that's expected for a self-signed cert on a device with no public DNS name, not a sign of a problem. If you'd rather not see that warning, you can replace the generated cert with one from your own local CA — see [Configuration](Configuration).
 
-wwwxterm closes this by rejecting any WebSocket upgrade whose `Host` or `Origin` header doesn't match `127.0.0.1:<port>` / `localhost:<port>`:
-```js
-const hostOk = ALLOWED_HOSTS.has(host);
-const originOk = !origin || ALLOWED_ORIGINS.has(origin);
-if (pathname !== '/pty' || !hostOk || !originOk) {
-    socket.destroy();
-    return;
-}
-```
-A request from any other origin, or with a mismatched `Host` header, never even gets upgraded.
+### Sessions are short-lived, random, and cookie-scoped correctly
+Session tokens are 256 bits of `crypto.randomBytes` — not guessable — held only in server memory (so a service restart invalidates all sessions) and expire after 12 hours of inactivity. The session cookie is `HttpOnly` (inaccessible to JavaScript, so it can't be stolen via XSS in the terminal's own front end), `SameSite=Strict` (not sent on cross-site requests), and `Secure` when running over TLS (never sent over plain HTTP).
 
-### Minimal static file exposure
-Only the specific front-end files the app needs are served, via an explicit map in `wt_server.js` — not the whole project directory via `express.static(__dirname)`. This means `wt_server.js` itself, `package.json`, and anything else in the repo isn't accessible over HTTP.
+### Login attempts are rate-limited
+5 failed attempts from an IP locks that IP out for 5 minutes. This is a speed bump against casual brute-forcing, not a substitute for a strong password — see the limitations below.
 
-### No CDN dependency at runtime
-`xterm.js` and `xterm-addon-fit` are pinned npm dependencies (`5.3.0` and `0.8.0`) served from the local `node_modules` at `/vendor/...`, not fetched from a CDN on every page load. Since this app grants shell access, trusting an unpinned third-party script on every load would be a real remote-code-execution risk if that CDN were ever compromised or MITM'd. Vendoring removes that dependency entirely once installed.
+### Origin validation on the WebSocket, generalized for LAN use
+Browsers do not apply same-origin restrictions to outgoing WebSocket connections, so without a check, any page open in your browser — on any site — could attempt to open a WebSocket to wwwxterm directly. The server checks that a connecting WebSocket's `Origin` matches the `Host` the request actually came in on; a request from a genuinely different origin is rejected before the handshake even completes. (Earlier versions of this project hardcoded this check to `127.0.0.1`/`localhost` specifically; it's now origin-relative so it keeps working regardless of which LAN IP or hostname you use to reach it.)
 
-### Runs as your own user, never root
-Both `wt_install.sh`/`wt_uninstall.sh` and the systemd service itself run under your account. `sudo` is used only for `apt install` (system packages) during install, and optionally for `loginctl enable-linger` — never to run wwwxterm itself.
-
-### Session cap
-`MAX_CONCURRENT_SESSIONS` (default 20) limits concurrent shell processes as defense-in-depth, in case a bug or an unforeseen bypass of the checks above is used to spawn many shells at once.
+### Minimal exposure, no CDN dependency, no root
+These protections are unchanged from before login/LAN support was added:
+- Only the specific static files the app needs are served — not the whole project directory.
+- `xterm.js` is vendored locally from a pinned npm version, not fetched from a CDN at runtime.
+- wwwxterm itself never runs as root. `sudo` is used only for one-time setup: installing system packages, writing the PAM service file, and optionally `loginctl enable-linger`.
 
 ## What's NOT protected against
 
-### Other local user accounts on the same machine
-`127.0.0.1` is shared by every account logged into the machine — not just yours. If your computer has multiple user accounts, **any of them** can reach `http://127.0.0.1:<port>` while the service is running and get a shell running as *your* user. There is no login prompt, password, or token in front of the terminal itself. If this matters to you, don't run wwwxterm on a shared multi-user machine, or add your own authentication layer in front of it (see below).
+### Someone who already has your system password
+This is the fundamental trust boundary: if someone knows your login password (or obtains it some other way — shoulder-surfing, a keylogger, a compromised other device, etc.), they can log into wwwxterm the same way you do. wwwxterm doesn't add a second factor. If that's a real concern for you, don't run wwwxterm reachable beyond localhost, or put a proper MFA-capable reverse proxy in front of it.
 
-### Anything with access to your logged-in browser session
-Any browser extension, script, or tool that can act as you within your own browser is, by definition, already inside the trust boundary this tool operates within. The Origin/Host checks stop *other origins* from reaching in; they don't add a second factor on top of "you're logged into your own browser."
+### Sustained brute-forcing over a very long time
+The rate limit slows casual attempts but doesn't stop a patient, sustained attack against a weak password. Use a real password (this is checking the same credential as everything else on your account — treat it accordingly).
 
-### Exposure beyond localhost
-Do not port-forward this, reverse-proxy it to a public hostname, or tunnel it (`ngrok`, `ssh -R`, etc.) without putting your own authentication in front of it. None is built in, and the Origin/Host allow-list is deliberately narrow (localhost only) — it is not designed to be a substitute for real auth if you widen exposure.
+### Anyone else with physical or account access to the same machine
+This was true before LAN support too: if your computer has multiple local user accounts, another account still can't authenticate as *you* through wwwxterm (PAM enforces that), but anyone with physical access to your already-unlocked session, or root access to the machine, has other ways in regardless of anything wwwxterm does.
+
+### Anything beyond your LAN
+Nothing here is designed to be exposed past your local network. Do not port-forward this, reverse-proxy it to a public hostname, or tunnel it (`ngrok`, `ssh -R`, etc.) — the threat model assumes "reachable from devices on your own network," not "reachable from the internet."
+
+### Self-signed TLS isn't the same guarantee as a CA-signed certificate
+It gets you encryption-in-transit (nobody sniffing your LAN traffic can read the password or session cookie), but it doesn't let a client cryptographically verify they're talking to *your* machine specifically, the way a CA-signed cert would. On a home/personal LAN this is a reasonable tradeoff; if you need the stronger guarantee, use your own CA-issued or internal-PKI certificate instead (see [Configuration](Configuration)).
 
 ## If you need stronger isolation
 
-wwwxterm intentionally doesn't ship its own authentication layer, to keep the codebase small and the threat model simple ("only reachable from your own browser, on your own machine"). If you need more than that — e.g. multiple people sharing a machine, or wanting to reach it remotely — put a reverse proxy with real authentication (e.g. `nginx` + Basic Auth over TLS, or a proper SSO proxy) in front of it, and treat wwwxterm itself as the backend rather than the trust boundary.
+If your threat model genuinely needs more than "your system password + TLS + rate limiting" — multiple untrusted users, exposure beyond your LAN, audit logging, MFA — put a reverse proxy with real authentication (e.g. `nginx`/`caddy` + a proper SSO or MFA layer) in front of wwwxterm, and treat wwwxterm itself as the backend rather than the trust boundary.
 
 ## Reporting a vulnerability
 

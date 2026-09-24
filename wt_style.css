@@ -13,6 +13,11 @@ body, html {
     display: flex; align-items: center; justify-content: center;
 }
 #add-tab:hover { background: #555; }
+#logout-btn {
+    background: #444; color: #ccc; border: none;
+    height: 35px; padding: 0 14px; cursor: pointer; font-size: 13px;
+}
+#logout-btn:hover { background: #a33; color: white; }
 #tabs-container { display: flex; flex: 1; overflow-x: auto; }
 .tab {
     padding: 8px 16px; background: #333; border-right: 1px solid #444;
@@ -38,3 +43,27 @@ body, html {
 .xterm-viewport::-webkit-scrollbar-track { background: #1e1e1e; }
 .xterm-viewport::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
 .xterm-viewport::-webkit-scrollbar-thumb:hover { background: #555; }
+/* --- Login page --- */
+.login-body {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; overflow: auto;
+}
+.login-card {
+    background: #2d2d2d; border: 1px solid #444; border-radius: 8px;
+    padding: 32px 28px; width: 280px; display: flex; flex-direction: column;
+    gap: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.login-title { margin: 0; font-size: 20px; text-align: center; }
+.login-subtitle { margin: 0 0 8px; font-size: 13px; color: #aaa; text-align: center; }
+.login-card input[type="password"] {
+    background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
+    color: #fff; padding: 10px 12px; font-size: 14px;
+}
+.login-card input[type="password"]:focus { outline: none; border-color: #007acc; }
+.login-card button {
+    background: #007acc; color: white; border: none; border-radius: 4px;
+    padding: 10px 12px; font-size: 14px; cursor: pointer;
+}
+.login-card button:hover { background: #0090f0; }
+.login-card button:disabled { opacity: 0.6; cursor: default; }
+.login-error { margin: 0; color: #ff6b6b; font-size: 13px; text-align: center; }

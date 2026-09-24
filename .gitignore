@@ -5,6 +5,10 @@ package-lock.json
 # Installed dependencies
 node_modules/
 
+# Generated self-signed TLS cert/key - machine-specific, and the key must
+# never be committed
+tls/
+
 # Logs
 *.log
 npm-debug.log*
