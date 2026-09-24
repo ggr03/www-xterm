@@ -9,7 +9,7 @@ A multi-tab web terminal for your own LAN. Inspired by the architecture of *Wett
 ## ✨ Features
 - **Multi-tab support** — open multiple independent shells running concurrently.
 - **Login required** — protected by your actual system account password, checked via PAM. There is exactly one valid account: whichever user runs the service — this is enforced by the OS itself, not just app logic (a non-root process can only verify its own account's password via PAM).
-- **TLS by default off localhost** — a self-signed certificate is generated at install time; the server refuses to start reachable-beyond-localhost without it, so a login password is never sent in plaintext over the network.
+- **TLS required once reachable beyond localhost** — a self-signed certificate is generated at install time; the server refuses to start otherwise, so a login password is never sent in plaintext over the network.
 - **Copy & paste** — native terminal copy/paste (`Ctrl+Shift+C` / `Ctrl+Shift+V` or right-click).
 - **Runs as a systemd user service** — starts on login, restarts on failure, managed entirely through `systemctl --user`. `sudo` is used only for one-time root-owned setup (packages, the PAM service file, and optionally `loginctl enable-linger`) — never to run the app itself.
 - **No CDN at runtime** — `xterm.js` is a pinned npm dependency served locally, not pulled from a third party on every page load.
@@ -17,8 +17,8 @@ A multi-tab web terminal for your own LAN. Inspired by the architecture of *Wett
 
 ## 🚀 Quick start
 ```bash
-git clone https://github.com/<your-username>/wwwxterm.git
-cd wwwxterm
+git clone https://github.com/ggr03/www-xterm.git
+cd www-xterm
 chmod +x wt_install.sh
 ./wt_install.sh
 ```

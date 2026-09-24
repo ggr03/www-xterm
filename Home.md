@@ -21,7 +21,7 @@ A small Express server serves a static front end (`wt_index.html`/`wt_client.js`
 - **Multi-tab terminals** — open several independent shells, switch between them, close them independently.
 - **Runs as a systemd user service** — starts on login, restarts automatically on crash, managed entirely with `systemctl --user`. No root is ever needed to run it.
 - **Login required** — protected by your real system password, checked via PAM. Only the account running the service can ever log in — enforced by the OS, not just the app.
-- **TLS by default off localhost** — a self-signed certificate is generated at install time; the server refuses to start reachable-beyond-localhost without it.
+- **TLS required once reachable beyond localhost** — a self-signed certificate is generated at install time; the server refuses to start otherwise.
 - **No CDN dependency at runtime** — `xterm.js` and its fit addon are pinned npm dependencies served from the local `node_modules`, not fetched from a third-party CDN on every page load.
 - **Copy & paste** — native terminal copy/paste (`Ctrl+Shift+C` / `Ctrl+Shift+V`, or right-click).
 - **Responsive sizing** — the terminal fills and tracks the actual browser window, resizing the underlying PTY to match.
